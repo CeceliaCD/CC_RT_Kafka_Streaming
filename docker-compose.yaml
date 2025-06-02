@@ -19,7 +19,9 @@ services:
       - KAFKA_BROKER_ID=1
       - KAFKA_CFG_ZOOKEEPER_CONNECT=zookeeper:2181
       - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092
-      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://localhost:9092
+      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092
+      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT
+      - KAFKA_CFG_INTER_BROKER_LISTENER_NAME=PLAINTEXT
       - ALLOW_PLAINTEXT_LISTENER=yes
     depends_on:
       - zookeeper
@@ -45,3 +47,17 @@ services:
       - spark-master
     ports:
       - "8081:8081"  # Spark Worker Web UI
+
+  spark-streaming-job:
+    image: bitnami/spark:3.5
+    container_name: spark-streaming-job
+    depends_on:
+      - kafka
+      - spark-master
+    entrypoint: [
+      "/opt/bitnami/spark/bin/spark-submit",
+      "--master", "spark://spark-master:7077",
+      "/opt/streaming-app/amazon_spark_streaming_job.py"
+    ]
+    volumes:
+      - ./streaming-app:/opt/streaming-app
