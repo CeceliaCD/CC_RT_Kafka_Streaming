@@ -1,9 +1,14 @@
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import expr
+import requests
+import os
+from dotenv import load_dotenv
 import socket
 import time
 
-# Retry until Kafka is up
+load_dotenv()
+
+# Retrying until Kafka is up
 def wait_for_kafka(broker, timeout=60):
     start = time.time()
     while time.time() - start < timeout:
@@ -23,7 +28,7 @@ spark = SparkSession.builder \
     .appName("KafkaStructuredStreaming") \
     .getOrCreate()
 
-# Read from Kafka
+# Reading from Kafka
 df = spark.readStream \
     .format("kafka") \
     .option("kafka.bootstrap.servers", "kafka:9092") \
@@ -31,15 +36,23 @@ df = spark.readStream \
     .option("startingOffsets", "latest") \
     .load()
 
-# Assume payloads are JSON strings with an 'event_type'
+# Assuming payloads are JSON strings with an 'event_type'
 df_parsed = df.selectExpr("CAST(value AS STRING) as json_str") \
     .selectExpr("from_json(json_str, 'event_type STRING') as data") \
     .select("data.event_type")
 
-# Count event types over a sliding window
+
 agg_df = df_parsed.groupBy("event_type").count()
 
-# Write to custom Flask app
+mongo_un = os.getenv("MONGODB_USERNAME")
+mongo_pw = os.getenv("MONGODB_PASSWORD")
+kafka_db = os.getenv("KAFKA_STREAMING_DB")
+kafka_coll = os.getenv("AMAZON_COLLECTION")
+
+df.writeStream \
+    .format("mongo") \
+    .option("uri", "mongodb+srv://ceceliacd:EMKGdcsQ74R4OeaH@ccdcluster2025.oon2fh6.mongodb.net/") \
+
 def send_to_flask(batch_df, batch_id):
     metrics = batch_df.toPandas().to_dict("records")
     try:

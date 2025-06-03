@@ -8,7 +8,6 @@ producer_host = yaml_kafka_host_loader('../docker-compose.yaml')
 topics = ["page_loaded", "product_searched", "product_clicked", "warranty_selected", "added_to_cart",
           "product_availability", "product_variant_selected", "cart_viewed", "checking_out"]
 
-# Create Kafka consumer
 consumer = KafkaConsumer(
     *topics,
     bootstrap_servers=producer_host,

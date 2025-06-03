@@ -33,9 +33,12 @@ services:
       - SPARK_MODE=master
     ports:
       - "7077:7077"
-      - "8080:8080"  # Spark Web UI
+      - "8080:8080"
     volumes:
       - ./streaming-app:/opt/streaming-app
+    depends_on:
+      - kafka
+      - flask-exporter
 
   spark-worker:
     image: bitnami/spark:3.5
@@ -46,18 +49,44 @@ services:
     depends_on:
       - spark-master
     ports:
-      - "8081:8081"  # Spark Worker Web UI
+      - "8081:8081"
 
   spark-streaming-job:
     image: bitnami/spark:3.5
-    container_name: spark-streaming-job
-    depends_on:
-      - kafka
-      - spark-master
-    entrypoint: [
-      "/opt/bitnami/spark/bin/spark-submit",
-      "--master", "spark://spark-master:7077",
-      "/opt/streaming-app/amazon_spark_streaming_job.py"
-    ]
+    container_name: amazon-spark-streaming-job
+    entrypoint:
+      - /opt/bitnami/spark/bin/spark-submit
+      - --master
+      - spark://spark-master:7077
+      - --deploy-mode
+      - client
+      - /opt/streaming-app/amazon_spark_streaming_job.py
     volumes:
       - ./streaming-app:/opt/streaming-app
+    depends_on:
+      - kafka
+      - flask-exporter
+
+  flask-exporter:
+    build: ./flask-exporter
+    container_name: flask-exporter
+    ports:
+      - "8000:8000"
+    depends_on:
+      - kafka
+
+  prometheus:
+    image: prom/prometheus
+    container_name: prometheus
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+
+  grafana:
+    image: grafana/grafana
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
