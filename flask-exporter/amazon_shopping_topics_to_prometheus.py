@@ -1,8 +1,7 @@
-from flask import Flask, requests, Response
+from flask import Flask, Response
 from prometheus_client import Counter, generate_latest
 from prometheus_client import make_wsgi_app
 from werkzeug.middleware.dispatcher import DispatcherMiddleware
-#from collections import defaultdict
 
 app = Flask(__name__)
 

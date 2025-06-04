@@ -1,8 +1,5 @@
 from kafka import KafkaConsumer
 import json
-from utils.yaml_loader import yaml_kafka_host_loader
-
-producer_host = yaml_kafka_host_loader('../docker-compose.yaml')
 
 # Same topics as producer
 topics = ["page_loaded", "product_searched", "product_clicked", "warranty_selected", "added_to_cart",
@@ -10,7 +7,7 @@ topics = ["page_loaded", "product_searched", "product_clicked", "warranty_select
 
 consumer = KafkaConsumer(
     *topics,
-    bootstrap_servers=producer_host,
+    bootstrap_servers="kafka:9092",
     value_deserializer=lambda m: json.loads(m.decode('utf-8')),
     auto_offset_reset='earliest',  # or 'latest'
     enable_auto_commit=True,

@@ -5,7 +5,6 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.chrome.options import Options
 from kafka import KafkaProducer
-from utils.yaml_loader import yaml_kafka_host_loader
 from datetime import datetime
 import json
 
@@ -13,11 +12,10 @@ import json
 action_types = ["click", "search", "add_to_cart", "purchase", "product_unavailable"]
 topics = ["page_loaded", "product_searched", "product_clicked", "warranty_selected", "added_to_cart", "product_availability", "product_variant_selected", "cart_viewed", "checking_out"]
 
-def send_events_to_kafka(topic, event_data):
-    producer_host = yaml_kafka_host_loader('../docker-compose.yaml')
-    amazon_producer = KafkaProducer(bootstrap_servers=producer_host,
-                             value_serializer=lambda v: json.dumps(v).encode('utf-8'))
+amazon_producer = KafkaProducer(bootstrap_servers="kafka:9092",
+                                value_serializer=lambda v: json.dumps(v).encode('utf-8'))
 
+def send_events_to_kafka(topic, event_data):
     iso_string = datetime.utcnow().isoformat() + 'Z'
     dt_object = datetime.fromisoformat(iso_string.replace('Z', '+00:00'))
 
@@ -34,8 +32,13 @@ def send_events_to_kafka(topic, event_data):
 
 def simulate_user_shopping_event():
     chrome_option = Options()
-    chrome_option.add_argument("--headless")
-    driver = webdriver.Chrome(options=chrome_option)
+    chrome_option.add_argument("--headless=new")
+    chrome_option.add_argument("--no-sandbox")
+    chrome_option.add_argument("--disable-dev-shm-usage")
+    chrome_option.add_argument("--remote-debugging-port=9222")
+    chrome_option.add_argument("--disable-gpu")
+    chrome_option.add_argument("--disable-software-rasterizer")
+    driver = webdriver.Chrome(executable_path='/usr/bin/chromedriver', options=chrome_option)
     #errors = ["NoSuchElementException", "ElementNotInteractableException"]
     driver.get("https://www.amazon.com")
 
