@@ -1,6 +1,8 @@
 from selenium import webdriver
+import tempfile
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.chrome.options import Options
@@ -9,15 +11,18 @@ from datetime import datetime
 import json
 
 #global variables
+#chrome_driver_path = Path(__file__).parent / "chromedriver" / "chromedriver-mac-x64" / "chromedriver"
+service = Service(executable_path="/usr/bin/chromedriver")
+
 action_types = ["click", "search", "add_to_cart", "purchase", "product_unavailable"]
 topics = ["page_loaded", "product_searched", "product_clicked", "warranty_selected", "added_to_cart", "product_availability", "product_variant_selected", "cart_viewed", "checking_out"]
 
 amazon_producer = KafkaProducer(bootstrap_servers="kafka:9092",
+                                api_version=(0, 11, 5),
                                 value_serializer=lambda v: json.dumps(v).encode('utf-8'))
 
 def send_events_to_kafka(topic, event_data):
-    iso_string = datetime.utcnow().isoformat() + 'Z'
-    dt_object = datetime.fromisoformat(iso_string.replace('Z', '+00:00'))
+    dt_object = datetime.utcnow().isoformat() + 'Z'
 
     event_payload = {
         "shopping_timestamp": dt_object,
@@ -38,7 +43,11 @@ def simulate_user_shopping_event():
     chrome_option.add_argument("--remote-debugging-port=9222")
     chrome_option.add_argument("--disable-gpu")
     chrome_option.add_argument("--disable-software-rasterizer")
-    driver = webdriver.Chrome(executable_path='/usr/bin/chromedriver', options=chrome_option)
+
+    # Creating a temporary isolated user-data-dir
+    user_data_dir = tempfile.mkdtemp()
+    chrome_option.add_argument(f"--user-data-dir={user_data_dir}")
+    driver = webdriver.Chrome(service=service, options=chrome_option)
     #errors = ["NoSuchElementException", "ElementNotInteractableException"]
     driver.get("https://www.amazon.com")
 
@@ -54,7 +63,7 @@ def simulate_user_shopping_event():
     send_events_to_kafka(topics[0], event_dict)
 
     #Buying electronics and accessories to build ultimate gaming PC set up
-    search_bar = WebDriverWait(driver, 3).until(
+    search_bar = WebDriverWait(driver, 10).until(
         EC.visibility_of_element_located((By.CSS_SELECTOR, ".nav-input.nav-progressive-attribute"))
     )
 
@@ -64,7 +73,7 @@ def simulate_user_shopping_event():
     event_dict["url"] = driver.current_url
     send_events_to_kafka(topics[1], event_dict)
 
-    driver.implicitly_wait(3)
+    driver.implicitly_wait(5)
     desktop_option = driver.find_element(by=By.CSS_SELECTOR, value='div[data-component-id="3"] h2 a')
     desktop_option.click()
     event_dict["action_type"] = action_types[0]
@@ -80,7 +89,7 @@ def simulate_user_shopping_event():
     event_dict["url"] = driver.current_url
     send_events_to_kafka(topics[3], event_dict)
 
-    wait = WebDriverWait(driver, 3)
+    wait = WebDriverWait(driver, 10)
     wait.until(EC.element_to_be_selected(two_yr_warranty_checkbox))
 
     desired_desktop_txt = driver.find_element(by=By.XPATH, value='//*[@id="availability"]/span')
@@ -112,7 +121,7 @@ def simulate_user_shopping_event():
     event_dict["url"] = driver.current_url
     send_events_to_kafka(topics[1], event_dict)
 
-    driver.implicitly_wait(3)
+    driver.implicitly_wait(5)
 
     desired_curved_monitor_title = driver.find_element(by=By.XPATH, value='//h2/span[contains(text(), "OMEN 32c QHD 165Hz Curved Gaming Monitor")]')
     results = driver.find_elements(By.CSS_SELECTOR, "div[role='listitem']")
@@ -138,7 +147,7 @@ def simulate_user_shopping_event():
     event_dict["url"] = driver.current_url
     send_events_to_kafka(topics[1], event_dict)
 
-    driver.implicitly_wait(3)
+    driver.implicitly_wait(5)
     driver.find_element(by=By.ID, value="a-autoid-3-announce").click()
     event_dict["action_type"] = action_types[2]
     event_dict["target"] = "add-to-cart-button"
@@ -200,7 +209,7 @@ def simulate_user_shopping_event():
     event_dict["url"] = driver.current_url
     send_events_to_kafka(topics[1], event_dict)
 
-    driver.implicitly_wait(3)
+    driver.implicitly_wait(5)
 
     driver.find_element(by=By.ID, value="a-autoid-49-announce").click()
     event_dict["action_type"] = action_types[2]
@@ -221,7 +230,7 @@ def simulate_user_shopping_event():
     event_dict["url"] = driver.current_url
     send_events_to_kafka(topics[1], event_dict)
 
-    WebDriverWait(driver,5).until(
+    WebDriverWait(driver,10).until(
         EC.element_to_be_clickable((By.PARTIAL_LINK_TEXT, "Wireless Cat Ear Headphones, Pink Gaming Headset Bluetooth 5.0"))
     ).click()
     event_dict["action_type"] = action_types[0]
@@ -230,7 +239,7 @@ def simulate_user_shopping_event():
     event_dict["url"] = driver.current_url
     send_events_to_kafka(topics[2], event_dict)
 
-    available_headset_txt = WebDriverWait(driver, 5).until(
+    available_headset_txt = WebDriverWait(driver, 10).until(
         EC.visibility_of_element_located((By.XPATH, '//*[@id="availability"]/span'))
     )
 
@@ -259,7 +268,7 @@ def simulate_user_shopping_event():
     event_dict["url"] = driver.current_url
     send_events_to_kafka(topics[7], event_dict)
 
-    WebDriverWait(driver, 3).until(
+    WebDriverWait(driver, 10).until(
         EC.element_to_be_clickable((By.NAME, "proceedToRetailCheckout"))
     ).click()
     event_dict["action_type"] = action_types[3]
@@ -272,8 +281,17 @@ def simulate_user_shopping_event():
 
 def simulate_user_luxury_window_shopping_event():
     chrome_option = Options()
-    chrome_option.add_argument("--headless")
-    ws_driver = webdriver.Chrome(options=chrome_option)
+    chrome_option.add_argument("--headless=new")
+    chrome_option.add_argument("--no-sandbox")
+    chrome_option.add_argument("--disable-dev-shm-usage")
+    chrome_option.add_argument("--remote-debugging-port=9222")
+    chrome_option.add_argument("--disable-gpu")
+    chrome_option.add_argument("--disable-software-rasterizer")
+
+    # Creating a temporary isolated user-data-dir
+    user_data_dir = tempfile.mkdtemp()
+    chrome_option.add_argument(f"--user-data-dir={user_data_dir}")
+    ws_driver = webdriver.Chrome(service=service,options=chrome_option)
     #errors = ["NoSuchElementException", "ElementNotInteractableException"]
     ws_driver.get("https://www.amazon.com")
 
@@ -289,7 +307,7 @@ def simulate_user_luxury_window_shopping_event():
     send_events_to_kafka(topics[0], event_dict)
 
     #Random window shopping
-    search_bar = WebDriverWait(ws_driver, 3).until(
+    search_bar = WebDriverWait(ws_driver, 10).until(
         EC.visibility_of_element_located((By.CSS_SELECTOR, ".nav-input.nav-progressive-attribute"))
     )
 
@@ -305,7 +323,7 @@ def simulate_user_luxury_window_shopping_event():
     for result in results:
         product_name_descript = result.text
         if "Mens Sunglasses (VE4296) Acetate" in product_name_descript:
-            WebDriverWait(ws_driver, 3).until(
+            WebDriverWait(ws_driver, 10).until(
                 EC.element_to_be_clickable((By.PARTIAL_LINK_TEXT, "Mens Sunglasses (VE4296) Acetate"))
             ).click()
             event_dict["action_type"] = action_types[0]
@@ -327,7 +345,7 @@ def simulate_user_luxury_window_shopping_event():
     event_dict["url"] = ws_driver.current_url
     send_events_to_kafka(topics[1], event_dict)
 
-    WebDriverWait(ws_driver, 3).until(
+    WebDriverWait(ws_driver, 10).until(
         EC.element_to_be_clickable((By.PARTIAL_LINK_TEXT, "Snapshot, Black"))
     ).click()
     event_dict["action_type"] = action_types[0]
@@ -350,7 +368,7 @@ def simulate_user_luxury_window_shopping_event():
     event_dict["url"] = ws_driver.current_url
     send_events_to_kafka(topics[0], event_dict)
 
-    WebDriverWait(ws_driver, 3).until(
+    WebDriverWait(ws_driver, 10).until(
         EC.visibility_of_element_located((By.PARTIAL_LINK_TEXT, "Saks"))
     ).click()
     event_dict["action_type"] = action_types[0]
@@ -365,7 +383,7 @@ def simulate_user_luxury_window_shopping_event():
     carrot_button = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[aria-label="Click to slide right"]')))
     for result in results_list:
         if "Glass Crystal Monogram Clip-On Stud Earrings" in result.text:
-            WebDriverWait(ws_driver, 3).until(
+            WebDriverWait(ws_driver, 10).until(
                 EC.element_to_be_clickable((By.CLASS_NAME, "Title_title_z5HRm"))
             ).click()
             event_dict["action_type"] = action_types[0]

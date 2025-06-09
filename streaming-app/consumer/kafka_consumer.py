@@ -8,6 +8,7 @@ topics = ["page_loaded", "product_searched", "product_clicked", "warranty_select
 consumer = KafkaConsumer(
     *topics,
     bootstrap_servers="kafka:9092",
+    api_version=(0, 11, 5),
     value_deserializer=lambda m: json.loads(m.decode('utf-8')),
     auto_offset_reset='earliest',  # or 'latest'
     enable_auto_commit=True,
