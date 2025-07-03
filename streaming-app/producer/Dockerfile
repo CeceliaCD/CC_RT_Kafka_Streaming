@@ -1,7 +1,8 @@
-FROM python:3.10-slim
+FROM python:3.10
 
 # Installing required system dependencies
 RUN apt-get update && apt-get install -y \
+    netcat-openbsd \
     wget curl unzip gnupg libglib2.0-0 libnss3 libgconf-2-4 libfontconfig1 \
     libxss1 libappindicator3-1 libasound2 libatk-bridge2.0-0 libgtk-3-0 \
     libx11-xcb1 xdg-utils fonts-liberation libxcomposite1 libxdamage1 \
@@ -16,9 +17,12 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . /app
+
+RUN chmod +x /app/wait_for_kafka.sh
+
 WORKDIR /app
 
 # sanity check
 RUN google-chrome --version && chromedriver --version
 
-CMD ["python", "amazon_shopping_transaction_producer.py"]
+CMD ["sh", "wait_for_kafka.sh"]
